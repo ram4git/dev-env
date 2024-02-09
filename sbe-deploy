@@ -1,0 +1,55 @@
+#!/bin/bash
+CDIR=`pwd`
+M2_HOME=/home/ram/apache-maven-3.8.5
+export PATH=${M2_HOME}/bin:$PATH
+TAG="${TAG:=ram}"
+NAMESPACE="${NAMESPACE:=ram-dev}"
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+printf "${BLUE}[1] - BUILDING Docker Image for tag ${TAG}${NC} \n"
+
+if [[ $REPO == "sonetio" ]]; then
+        printf "${NC}${RED} - This is a production container registry. Quitting the build ${NC}"
+        exit 0
+fi
+
+cd /home/ram/src/sonet-backend
+printf "${BLUE}[1] - BUILDING MVN Project${NC} \n"
+mvn clean package;
+if [ $? -eq 0 ]; then
+        printf "${BLUE}[1] - BUILDING MVN Project${NC} -${GREEN}👍 Done${NC} \n"
+else
+   say @b@red[[MVN Project build Failed]]
+   exit
+fi
+docker build . -t us-west1-docker.pkg.dev/sonet-cloud/sonetio-dev/sonet-backend-api-server:$TAG --progress=plain
+if [ $? -eq 0 ]; then
+	printf "${BLUE}[1] - BUILDING Docker Image${NC} -${GREEN}👍 Done${NC} \n"
+else
+   say @b@red[[Docker image build Failed]]
+   exit 
+fi
+
+docker push us-west1-docker.pkg.dev/sonet-cloud/sonetio-dev/sonet-backend-api-server:$TAG
+if [ $? -eq 0 ]; then
+        printf "${BLUE}[2] - PUSHING Docker Image${NC} -${GREEN}👍 Done${NC} \n"
+else
+   say @b@red[[Docker image push Failed!]]
+   exit
+fi
+
+printf "${BLUE}[3] - DEPLOYING Helm Chart${NC} \n"
+cd /home/ram/src/sonet-k8s-deploy
+helm upgrade sonet -n $NAMESPACE helm/sonet-service --reuse-values --set dashboard.imageRepo=us-west1-docker.pkg.dev/sonet-cloud/sonetio-dev --set dashboard.imageVersion=$TAG
+if [ $? -eq 0 ]; then
+   printf "${BLUE}[3] - DEPLOYING Helm Chart${NC} -${GREEN}👍 Done${NC} \n"
+else
+   say @b@red[[Helm Deployment Failed!]]
+   exit
+fi
+cd $CDIR
+
+
+printf "${GREEN}[✅] - Deployment Finished! ${NC} 🥳 \n"

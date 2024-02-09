@@ -1,0 +1,55 @@
+#!/bin/bash
+CDIR=`pwd`
+TAG="${TAG:=ram}"
+NAMESPACE="${NAMESPACE:=ram-dev}"
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+RED='\033[0;31m'
+LIGHTGREY='\033[0;33m'
+NC='\033[0m' # No Color
+printf "${BLUE}[0] - BUILDING react project ${TAG}${NC} \n"
+
+if [[ $REPO == "sonetio" ]]; then
+        printf "${NC}${RED} - This is a production container registry. Quitting the build ${NC}"
+        exit 0
+fi
+
+cd $SRC/sonet-frontend
+npm install && npm run build
+if [ $? -eq 0 ]; then
+        printf "${NC}${BLUE}[0] - BUILDING react project${NC} -${GREEN}👍 Done${NC} \n"
+else
+   say @b@red[[Docker image build Failed]]
+   exit
+fi
+
+printf "${BLUE}[1] - BUILDING Docker Image for tag ${TAG}${NC} \n"
+docker build . -t us-west1-docker.pkg.dev/sonet-cloud/sonetio-dev/sonetfrontend:$TAG --progress=plain
+if [ $? -eq 0 ]; then
+	printf "${NC}${BLUE}[1] - BUILDING Docker Image${NC} -${GREEN}👍 Done${NC} \n"
+else
+   say @b@red[[Docker image build Failed]]
+   exit 
+fi
+printf "${LIGHTGREY} \n"
+docker push us-west1-docker.pkg.dev/sonet-cloud/sonetio-dev/sonetfrontend:$TAG
+if [ $? -eq 0 ]; then
+        printf "${NC}${BLUE}[2] - PUSHING Docker Image${NC} -${GREEN}👍 Done${NC} ${LIGHTGREY} \n"
+else
+   say @b@red[[Docker image push Failed!]]
+   exit
+fi
+
+printf "${NC}${BLUE}[3] - DEPLOYING Helm Chart${NC}${LIGHTGREY} \n"
+cd $SRC/sonet-k8s-deploy
+helm upgrade sonet -n $NAMESPACE helm/sonet-service --reuse-values --set frontend.imageRepo=us-west1-docker.pkg.dev/sonet-cloud/sonetio-dev --set frontend.imageTag=$TAG
+if [ $? -eq 0 ]; then
+   printf "${NC}${BLUE}[3] - DEPLOYING Helm Chart${NC} -${GREEN}👍 Done${NC}${LIGHTGREY} \n"
+else
+   say @b@red[[Helm Deployment Failed!]]
+   exit
+fi
+cd $CDIR
+
+
+printf "${NC}${GREEN}[✅] - Deployment Finished! ${NC} 🥳 \n"
