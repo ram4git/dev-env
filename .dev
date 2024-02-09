@@ -1,0 +1,13 @@
+export TAG="ram"
+export NAMESPACE="ram-dev"
+export SONET_K8S_DEPLOY_DIR=/home/ram/src/sonet-k8s-deploy
+alias build:guac="docker build . -t us-west1-docker.pkg.dev/sonet-cloud/sonetio-dev/guacamole:$TAG --progress=plain"
+alias push:guac="docker push us-west1-docker.pkg.dev/sonet-cloud/sonetio-dev/guacamole:$TAG"
+alias buildpush:guac="build:guac && push:guac"
+alias helm:deploy="cd $SONET_K8S_DEPLOY_DIR; helm upgrade sonet -n $NAMESPACE helm/sonet-service --reuse-values --set webapp.imageRepo=us-west1-docker.pkg.dev/sonet-cloud/sonetio-dev --set webapp.imageTag=$TAG; cd -"
+alias helm:upgrade="helm upgrade sonet -n $NAMESPACE helm/sonet-service --reuse-values"
+alias k="k9s -n $NAMESPACE"
+alias deploy="buildpush:guac && helm:deploy"
+alias helm:upgrade:ui="helm upgrade sonet -n ram-dev helm/sonet-service --reuse-values --set frontend.imageVersion=passwordManager"
+alias helm:values="helm get values -a sonet -n $NAMESPACE > $NAMESPACE.yaml"
+alias heml:a="helm upgrade sonet -n $1 helm/sonet-service -f $2"

@@ -1,0 +1,138 @@
+# CHANGE THERE
+echo "Welcome Ram!"
+export SRC=/home/ram/src
+export TAG=ram
+export NAMESPACE=ram-dev
+
+
+export CLICOLOR=1
+txtblk='\e[0;30m' # Black - Regular
+txtred='\e[0;31m' # Red
+txtgrn='\e[0;32m' # Green
+txtylw='\e[0;33m' # Yellow
+txtblu='\e[0;34m' # Blue
+txtpur='\e[0;35m' # Purple
+txtcyn='\e[0;36m' # Cyan
+txtwht='\e[0;37m' # White
+bldblk='\e[1;30m' # Black - Bold
+bldred='\e[1;31m' # Red
+bldgrn='\e[1;32m' # Green
+bldylw='\e[1;33m' # Yellow
+bldblu='\e[1;34m' # Blue
+bldpur='\e[1;35m' # Purple
+bldcyn='\e[1;36m' # Cyan
+bldwht='\e[1;37m' # White
+unkblk='\e[4;30m' # Black - Underline
+undred='\e[4;31m' # Red
+undgrn='\e[4;32m' # Green
+undylw='\e[4;33m' # Yellow
+undblu='\e[4;34m' # Blue
+undpur='\e[4;35m' # Purple
+undcyn='\e[4;36m' # Cyan
+undwht='\e[4;37m' # White
+bakblk='\e[40m'   # Black - Background
+bakred='\e[41m'   # Red
+badgrn='\e[42m'   # Green
+bakylw='\e[43m'   # Yellow
+bakblu='\e[44m'   # Blue
+bakpur='\e[45m'   # Purple
+bakcyn='\e[46m'   # Cyan
+bakwht='\e[47m'   # White
+txtrst='\e[0m'    # Text Reset
+
+#VARIABLES
+
+print_before_the_prompt () {
+
+# is this a git branch?
+GIT=''
+GBRANCH=`git branch 2> /dev/null | grep \* | awk '{print $2}'`
+if [[ "$GBRANCH" != "" ]]; then
+GIT="on git:$GBRANCH"
+fi
+LOC="VM:ram-dev"
+
+printf "\n$txtred%s $txtred%s $txtpur%s \n$txtrst" "⌘" "~$PWD/" "[$USER $GIT $LOC]"
+}
+PROMPT_COMMAND=print_before_the_prompt
+export PS1="→ "
+
+export SKD=$SRC/sonet-k8s-deploy
+alias dsp="docker system prune"
+alias upd="cd /home/sonet/sonet-deploy/ | docker-compose up -d"
+alias dip="docker image prune"
+alias gcl="docker-compose logs -f --tail 0 -t guacamole"
+alias gcb="docker build -t sonetio/guacamole:local ../guacamole-client"
+alias gctk="docker tag sonetio/guacamole:local  us-west1-docker.pkg.dev/sonet-cloud/sonetio-dev/guacamole:ramdev"
+alias gcpk="docker push us-west1-docker.pkg.dev/sonet-cloud/sonetio-dev/guacamole:ramdev"
+alias hu="helm upgrade sonet -n ram-dev helm/sonet-service --reuse-values --set webapp.imageRepo=us-west1-docker.pkg.dev/sonet-cloud/sonetio-dev --set webapp.imageTag=prod"
+alias hugc="helm upgrade sonet -n ram-dev helm/sonet-service --reuse-values --set webapp.imageRepo=us-west1-docker.pkg.dev/sonet-cloud/sonetio-dev --set webapp.imageTag=ramdev --set chromeBroker.imageRepo=us-west1-docker.pkg.dev/sonet-cloud/sonetio-dev --set chromeBroker.imageTag=ramdev"
+alias gcbb="docker build -t sonetio/chrome-broker:local ../chrome-broker"
+alias gcbtk="docker tag sonetio/chrome-broker:local us-west1-docker.pkg.dev/sonet-cloud/sonetio-dev/chrome-broker:ramdev"
+alias gcbpk="docker push us-west1-docker.pkg.dev/sonet-cloud/sonetio-dev/chrome-broker:ramdev"
+alias gcrdb="kubectl port-forward -n ram-dev svc/guacamole 4005:4005"
+alias gcdbf="kubectl port-forward -n ram-dev svc/postgres 5432:5432"
+function ssh_guacclient {
+    kubectl exec -it $(kubectl get pods -n $1 | cut -f 1 -d ' ' | grep "guacamole*") -c guacamole -n $1 -- /bin/bash
+}
+function log_guacclient {
+        kubectl logs --follow $(kubectl get pods -n $1 | cut -f 1 -d ' ' | grep "guacamole*") -n $1 --container guacamole
+}
+function log_cb {
+        kubectl logs --follow $(kubectl get pods -n $1 | cut -f 1 -d ' ' | grep "chrome*") -n $1
+}
+function ssh_cb {
+    kubectl exec -it $(kubectl get pods| cut -f 1 -d ' ' | grep "chrome*") -n ram-dev -- /bin/bash
+}
+function get_image () {
+        kubectl get pods -n $1  -o jsonpath="{.items[*].spec.containers[*].image}" | tr ' ' '\n'
+}
+function hu_dev(){
+        helm upgrade sonet -n $1 helm/sonet-service --reuse-values
+}
+function kgp(){
+        kubectl get pods -n $1
+}
+
+function cleanDockerVolumes(){
+	docker system prune -f -a --volumes
+	sudo rm -rf /var/lib/docker/overlay2/* #whatever left in overlay2 are garbages which taking lots of space
+	sudo systemctl restart docker
+	docker system df
+}
+
+
+alias bcb="docker build -t sonetio/chrome-broker:ram-dev ~/workspace/sonetio/chrome-broker"
+export NAMESPACE=ram-dev
+export TAG=ram
+alias deploy:cb=chrome-broker-deploy
+alias deploy:guac=guac-deploy
+alias deploy:guacserver=guac-server-deploy
+alias deploy:fe=fe-deploy
+alias deploy:dash=be-deploy
+
+alias refresh:guac=guac-refresh
+alias refresh:cb=chrome-broker-refresh
+alias refresh:guacserver=guac-server-refresh
+alias refresh:fe=fe-refresh
+alias refresh:dash=be-refresh
+alias refresh:guacd=guacd-refresh
+alias docker:prune=docker-prune
+alias values="helm get values -a sonet -n ram-dev"
+alias vi=nvim
+alias sonet:values="helm get values -a sonet -n $NAMESPACE > $NAMESPACE.yaml"
+alias sonet:upgrade="cd $SRC/sonet-k8s-deploy; ./sonetctl tenant upgrade $NAMESPACE -f conf/$NAMESPACE.conf -v ./$NAMESPACE.yaml; cd -"
+
+function sonet:upgrade() {
+	cd ~/src/sonet-k8s-deploy
+        ./sonetctl tenant upgrade  $NAMESPACE -f config/dev.conf -v config/dev.yaml
+}
+
+export KUBECONFIG=$HOME/.kube/config
+
+eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+
+
+alias sonet:vaultKey="kubectl exec $1 -n $NAMESPACE -c vault -- cat /sonet/vault-key.json"
+alias connect2postgres="psql -d guacamole_db -U guacamole_user"
+
